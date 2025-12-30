@@ -112,11 +112,29 @@ export default async function NvdaPage() {
       </div>
 
       <div className="mt-4 border-b border-gray-200">
-        <nav className="flex gap-4" aria-label="tabs">
-          <Link href="/nvda" className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium">Overview</Link>
-          <Link href="/nvda/dcf" className="pb-3 text-gray-600 hover:text-blue-600">DCF</Link>
-        </nav>
-      </div>
+  <nav className="flex gap-4" aria-label="tabs">
+    <Link
+      href="/nvda"
+      className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium"
+    >
+      Overview
+    </Link>
+
+    <Link
+      href="/nvda/dcf"
+      className="pb-3 text-gray-600 hover:text-blue-600"
+    >
+      DCF
+    </Link>
+
+    <Link
+      href="/nvda/quant"
+      className="pb-3 text-gray-600 hover:text-blue-600"
+    >
+      Quant
+    </Link>
+  </nav>
+</div>
 
       <Sparkline closes={closes} />
 

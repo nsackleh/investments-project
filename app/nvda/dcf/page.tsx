@@ -299,13 +299,30 @@ export default function NvdaDcfPage() {
           </div>
         </div>
 
-        <div className="mt-4 border-b border-gray-200">
-          <nav className="flex gap-4" aria-label="tabs">
-            <Link href="/nvda" className="pb-3 text-gray-600 hover:text-blue-600">Overview</Link>
-            <Link href="/nvda/dcf" className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium">DCF</Link>
-          </nav>
-        </div>
+<div className="mt-4 border-b border-gray-200">
+  <nav className="flex gap-4" aria-label="tabs">
+    <Link
+      href="/nvda"
+      className="pb-3 text-gray-600 hover:text-blue-600"
+    >
+      Overview
+    </Link>
 
+    <Link
+      href="/nvda/dcf"
+      className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium"
+    >
+      DCF
+    </Link>
+
+    <Link
+      href="/nvda/quant"
+      className="pb-3 text-gray-600 hover:text-blue-600"
+    >
+      Quant
+    </Link>
+  </nav>
+</div>
         {loading && (
           <div className="text-center py-12">
             <div className="text-gray-600">Loading financial data...</div>

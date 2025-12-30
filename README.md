@@ -6,17 +6,17 @@ A lightweight investment analysis platform built with **Next.js** that provides 
 
 ## Features
 
-- 📈 **Equity Dashboards**
+-  **Equity Dashboards**
   - Interactive price charts
   - Short- and long-horizon returns (1D, 1W, 1M, 1Y)
   - Annualized volatility calculations
 
-- 📊 **Market Data API**
+-  **Market Data API**
   - Server-side data fetching via custom API routes
   - Secure handling of third-party market data APIs
   - No client-side exposure of API keys
 
-- 💰 **DCF Valuation Framework**
+-  **DCF Valuation Framework**
   - Dedicated valuation route for each equity
   - Designed to support discounted cash flow modeling
   - Easily extensible to include assumptions, scenarios, and sensitivity analysis

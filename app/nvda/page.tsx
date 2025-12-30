@@ -56,8 +56,8 @@ function Sparkline({ closes }: { closes: number[] }) {
 export default async function NvdaPage() {
   // SIMPLE + RELIABLE (local dev)
   const res = await fetch("http://localhost:3000/api/prices/nvda", {
-    cache: "no-store",
-  });
+  next: { revalidate: 3600 }, // 1 hour
+});
 
   const data = await res.json();
   const bars: Bar[] = data.bars ?? [];

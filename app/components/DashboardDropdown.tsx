@@ -50,7 +50,9 @@ export default function DashboardDropdown() {
           <Link href="/nvda" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setOpen(false)}>
             NVDA
           </Link>
-          {/* Add more dashboard links here as you add more stocks */}
+          <Link href="/amzn" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setOpen(false)}>
+            AMZN
+          </Link>
         </div>
       </div>
     </div>

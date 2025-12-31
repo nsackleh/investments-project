@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const SYMBOL = "NVDA";
+const SYMBOL = "AMZN";
 const BASE = "https://www.alphavantage.co/query";
 
 function requiredEnv(name: string): string {
@@ -138,8 +138,18 @@ export async function GET() {
         (Date.parse(a?.date ?? "") || 0)
     );
 
+    // ✅ FIX: Alpha Vantage SHARES_OUTSTANDING doesn’t reliably use `sharesOutstanding`
     const latestShares = sharesQuarterly.length
-      ? toNum(sharesQuarterly[0]?.sharesOutstanding)
+      ? pickFirstNum(sharesQuarterly[0], [
+          "sharesOutstanding",
+          "shares_outstanding",
+          "basicSharesOutstanding",
+          "basic_shares_outstanding",
+          "dilutedSharesOutstanding",
+          "diluted_shares_outstanding",
+          "shares",
+          "value",
+        ])
       : null;
 
     const dates = [
@@ -220,10 +230,8 @@ export async function GET() {
         totalDebt,
         netDebt,
         sharesOutstanding:
-          pickFirstNum(isr, [
-            "weightedAverageShsOutDil",
-            "weightedAverageShsOut",
-          ]) ?? latestShares,
+          pickFirstNum(isr, ["weightedAverageShsOutDil", "weightedAverageShsOut"]) ??
+          latestShares,
         opNwc,
         ebitMargin,
         effectiveTaxRate,

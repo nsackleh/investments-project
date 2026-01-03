@@ -1,213 +1,120 @@
+// app/amzn/quant/page.tsx
 import Link from "next/link";
 
-type Bar = {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
-
-function mean(xs: number[]) {
-  return xs.reduce((s, x) => s + x, 0) / xs.length;
-}
-
-function std(xs: number[]) {
-  if (xs.length < 2) return NaN;
-  const m = mean(xs);
-  const v = xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1);
-  return Math.sqrt(v);
-}
-
-function quantile(sorted: number[], q: number) {
-  const n = sorted.length;
-  if (n === 0) return NaN;
-  const pos = (n - 1) * q;
-  const lo = Math.floor(pos);
-  const hi = Math.ceil(pos);
-  if (lo === hi) return sorted[lo];
-  const w = pos - lo;
-  return sorted[lo] * (1 - w) + sorted[hi] * w;
-}
-
-// deterministic RNG so results don't jump around every build
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Box–Muller for standard normal draws
-function randn(rng: () => number) {
-  let u = 0,
-    v = 0;
-  while (u === 0) u = rng();
-  while (v === 0) v = rng();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-function fmtMoney(x: number) {
-  if (!Number.isFinite(x)) return "—";
-  return `$${x.toFixed(2)}`;
-}
-function fmtPct(x: number) {
-  if (!Number.isFinite(x)) return "—";
-  return `${(x * 100).toFixed(2)}%`;
-}
+import Histogram from "@/components/Histogram";
+import LambdaSlider from "@/components/LambdaSlider";
+import Metric from "@/components/Metric";
+import { getBars } from "@/lib/prices";
+import { logReturns, stddev, fmtPct, fmtUsd } from "@/lib/stats";
+import { monteCarloGBM } from "@/lib/mc";
 
 export default async function AmznQuantPage() {
-  const res = await fetch("http://localhost:3000/api/prices/amzn", {
-    next: { revalidate: 3600 },
-  });
+  const symbol = "amzn";
 
-  const data = await res.json();
-  const bars: Bar[] = data.bars ?? [];
+  // 1) Pull bars from your existing /app/api/prices/* route (via src/lib/prices.ts)
+  const bars = await getBars(symbol);
 
-  if (bars.length < 260) {
+  if (bars.length < 60) {
     return (
-      <main className="min-h-screen bg-zinc-50">
-        <div className="p-10 max-w-5xl mx-auto space-y-6">
-          <h1 className="text-4xl font-semibold text-zinc-900">AMZN</h1>
-          <p className="text-zinc-600">
-            Need ~1 year of data (260+ bars) for stable Monte Carlo estimates.
-          </p>
-          <a href="/" className="underline text-zinc-700">
-            ← Back home
-          </a>
-        </div>
+      <main className="min-h-screen p-10 max-w-5xl mx-auto space-y-6">
+        <h1 className="text-4xl font-semibold">{symbol.toUpperCase()} · Quant</h1>
+        <p className="text-zinc-600">Not enough price history returned.</p>
+        <Link href={`/${symbol}`} className="underline">← Back</Link>
       </main>
     );
   }
 
-  const closes = bars.map((b) => b.close);
-  const S0 = closes[closes.length - 1];
+  const closes = bars.map(b => b.close);
+  const spot = closes[closes.length - 1];
 
-  // daily log returns (last ~252 trading days)
-  const logRets = closes
-    .slice(-252 - 1)
-    .map((c, i, arr) => (i === 0 ? 0 : Math.log(c / arr[i - 1])))
-    .slice(1);
+  // 2) Estimate μ and σ from historical returns
+  // Pick a window: last 252 trading days (1Y) is typical
+  const window = Math.min(253, closes.length);         // need 253 closes -> 252 returns
+  const rets = logReturns(closes.slice(-window));       // daily log returns
+  const muDaily = rets.reduce((s, x) => s + x, 0) / rets.length;
+  const sigmaDaily = stddev(rets);
 
-  const muD = mean(logRets);
-  const sigD = std(logRets);
+  // 3) Run Monte Carlo
+  const mc = monteCarloGBM({
+    spot,
+    muDaily,
+    sigmaDaily,
+    days: 252,
+    sims: 5000,
+    seed: 7,
+    lambda: 0.75,
+  });
 
-  // Monte Carlo settings
-  const horizonDays = 252; // 1Y
-  const nSims = 5000;
-  const lambda = 0.75;
-
-  const rng = mulberry32(42);
-  const T = horizonDays;
-  const drift = (muD - 0.5 * sigD * sigD) * T;
-  const diff = sigD * Math.sqrt(T);
-
-  const terminalPrices: number[] = new Array(nSims);
-  for (let i = 0; i < nSims; i++) {
-    const z = randn(rng);
-    terminalPrices[i] = S0 * Math.exp(drift + diff * z);
-  }
-
-  const sorted = [...terminalPrices].sort((a, b) => a - b);
-
-  const p05 = quantile(sorted, 0.05);
-  const p50 = quantile(sorted, 0.5);
-  const p95 = quantile(sorted, 0.95);
-  const pMean = mean(terminalPrices);
-  const pStd = std(terminalPrices);
-
-  const probLoss = terminalPrices.filter((x) => x < S0).length / nSims;
-
-  const terminalRets = terminalPrices.map((x) => x / S0 - 1);
-  const retSorted = [...terminalRets].sort((a, b) => a - b);
-  const var05 = quantile(retSorted, 0.05);
-  const cvar05 = mean(retSorted.filter((r) => r <= var05));
-
-  const riskAdj = pMean - lambda * pStd;
+  // Helper formatting
+  const fmtNum = (x: number) => (Number.isFinite(x) ? x.toFixed(4) : "—");
 
   return (
-    <main className="min-h-screen bg-zinc-50">
-      <div className="p-10 max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-end flex-wrap gap-4">
-          <div>
-            <h1 className="text-4xl font-semibold text-zinc-900">AMZN</h1>
-            <p className="text-sm text-zinc-500">Quant • Monte Carlo (1Y horizon)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-zinc-500">Spot</p>
-            <p className="text-4xl font-semibold text-zinc-900">{fmtMoney(S0)}</p>
-            <p className="text-sm text-zinc-500">Sims: {nSims.toLocaleString()}</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="mt-4 border-b border-zinc-200">
-          <nav className="flex gap-4" aria-label="tabs">
-            <Link href="/amzn" className="pb-3 text-zinc-600 hover:text-zinc-900">
-              Overview
-            </Link>
-            <Link href="/amzn/dcf" className="pb-3 text-zinc-600 hover:text-zinc-900">
-              DCF
-            </Link>
-            <Link href="/amzn/quant" className="pb-3 border-b-2 border-zinc-900 text-zinc-900 font-medium">
-              Quant
-            </Link>
-          </nav>
-        </div>
-
-        {/* Core results */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card label="μ (daily, hist.)" value={fmtPct(muD)} />
-          <Card label="σ (daily, hist.)" value={fmtPct(sigD)} />
-          <Card label="Prob. Loss (1Y)" value={fmtPct(probLoss)} />
-          <Card label="Risk-Adj Price" value={fmtMoney(riskAdj)} />
-        </div>
-
-        {/* Distribution */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 space-y-4">
-          <p className="text-sm font-medium text-zinc-900">
-            Terminal Price Distribution (1Y)
+    <main className="min-h-screen p-10 max-w-5xl mx-auto space-y-6">
+      <div className="flex justify-between items-end flex-wrap gap-4">
+        <div>
+          <h1 className="text-4xl font-semibold">{symbol.toUpperCase()} · Quant</h1>
+          <p className="text-sm opacity-70">
+            Spot: {fmtUsd(spot)} · Sims: {mc.sims.toLocaleString()} · Horizon: {mc.days} trading days
           </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Mini label="5th %ile" value={fmtMoney(p05)} />
-            <Mini label="Median" value={fmtMoney(p50)} />
-            <Mini label="Mean" value={fmtMoney(pMean)} />
-            <Mini label="95th %ile" value={fmtMoney(p95)} />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Mini label="VaR 5% (return)" value={fmtPct(var05)} />
-            <Mini label="CVaR 5% (return)" value={fmtPct(cvar05)} />
-            <Mini label="StdDev (price)" value={fmtMoney(pStd)} />
-            <Mini label="λ (penalty)" value={`${lambda.toFixed(2)}`} />
-          </div>
         </div>
 
-        <a href="/" className="underline text-zinc-700">← Back home</a>
+        <div className="text-right">
+          <p className="text-sm opacity-70">Estimated (daily)</p>
+          <p className="text-lg">μ: {fmtPct(muDaily)}</p>
+          <p className="text-lg">σ: {fmtPct(sigmaDaily)}</p>
+          <p className="text-sm opacity-70">Seed: 7 · λ: {mc.lambda}</p>
+        </div>
       </div>
+
+      {/* Tabs (match your style) */}
+      <div className="mt-4 border-b border-gray-200">
+        <nav className="flex gap-4" aria-label="tabs">
+          <Link href={`/${symbol}`} className="pb-3 text-gray-600 hover:text-blue-600">Overview</Link>
+          <Link href={`/${symbol}/dcf`} className="pb-3 text-gray-600 hover:text-blue-600">DCF</Link>
+          <span className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium">Quant</span>
+        </nav>
+      </div>
+
+      {/* Distribution summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Metric label="P5 (1Y)" value={fmtUsd(mc.p5)} />
+        <Metric label="P50 (Median)" value={fmtUsd(mc.p50)} />
+        <Metric label="Mean" value={fmtUsd(mc.mean)} />
+        <Metric label="P95 (1Y)" value={fmtUsd(mc.p95)} />
+      </div>
+
+      {/* Histogram */}
+       <Histogram
+        hist={mc.hist}
+        bins={mc.bins}
+        spot={spot}
+        p5={mc.p5}
+        p50={mc.p50}
+        p95={mc.p95}
+      />
+
+     {/* Risk */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Metric label="Prob. Loss (1Y)" value={fmtPct(mc.probLoss)} />
+        <Metric label="VaR 5% (Return)" value={fmtPct(mc.var5Return)} />
+        <Metric label="CVaR 5% (Return)" value={fmtPct(mc.cvar5Return)} />
+        <Metric label="Risk-Adj Price" value={fmtUsd(mc.riskAdjPrice)} />
+      </div>
+
+      {/* Slider to adjust lambda */}
+      <LambdaSlider mean={mc.mean} stdevPrice={mc.stdevPrice} initialLambda={mc.lambda} />
+
+      {/* Extra diagnostics */}
+      <div className="border rounded-xl p-4">
+        <p className="text-sm opacity-70">Notes</p>
+        <ul className="list-disc pl-5 space-y-1 mt-2">
+          <li>μ/σ are estimated from the last {window - 1} trading days of log returns.</li>
+          <li>VaR/CVaR are computed on 1Y return distribution (worst 5%).</li>
+          <li>Risk-Adj Price = E[S] − λ·StdDev(S) (simple penalty model).</li>
+        </ul>
+      </div>
+
+      <Link href={`/${symbol}`} className="underline">← Back</Link>
     </main>
-  );
-}
-
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-zinc-200 rounded-xl bg-white p-4">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className="text-xl font-semibold text-zinc-900">{value}</p>
-    </div>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-zinc-200 rounded-xl bg-zinc-50 p-4">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className="text-lg font-semibold text-zinc-900">{value}</p>
-    </div>
   );
 }

@@ -84,8 +84,15 @@ export default async function NvdaQuantPage() {
       </div>
 
       {/* Histogram */}
-      <Histogram hist={mc.hist} bins={mc.bins} />
-      
+      <Histogram
+  hist={mc.hist}
+  bins={mc.bins}
+  spot={spot}
+  p5={mc.p5}
+  p50={mc.p50}
+  p95={mc.p95}
+/>
+
      {/* Risk */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Metric label="Prob. Loss (1Y)" value={fmtPct(mc.probLoss)} />

@@ -53,6 +53,9 @@ export default function DashboardDropdown() {
           <Link href="/amzn" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setOpen(false)}>
             AMZN
           </Link>
+            <Link href="/ctas" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setOpen(false)}>
+            CTAS
+          </Link>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const SYMBOL = "NVDA";
+const SYMBOL = "CTAS";
 const BASE = "https://www.alphavantage.co/query";
 
 function requiredEnv(name: string): string {

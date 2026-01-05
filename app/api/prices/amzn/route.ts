@@ -35,7 +35,7 @@ export async function GET() {
   const url = "https://stooq.com/q/d/l/?s=amzn.us&i=d";
 
   const res = await fetch(url, {
-    next: { revalidate: 60 * 60 * 24 }, // cache 24h
+    next: { revalidate: 60 * 60 }, // cache 24h
   });
 
   if (!res.ok) {

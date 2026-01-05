@@ -49,7 +49,7 @@ type Assumptions = {
   terminalMethod: "perpetual" | "exit";
 };
 
-const CACHE_KEY = "nvda_dcf_data";
+const CACHE_KEY = "ctas_dcf_data";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 function clamp(x: number, lo: number, hi: number) {
@@ -160,7 +160,7 @@ function Card({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-export default function NvdaDcfPage() {
+export default function CtasDcfPage() {
   const [data, setData] = useState<AlphaVantageResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -199,7 +199,7 @@ export default function NvdaDcfPage() {
         // No valid cache, fetch fresh data
         console.log("Fetching fresh data");
         setUsingCache(false);
-        const res = await fetch("/api/financials/nvda-mock");
+        const res = await fetch("/api/financials/ctas");
         
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -361,7 +361,7 @@ export default function NvdaDcfPage() {
       <main className="max-w-7xl mx-auto space-y-8">
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">NVDA DCF Model</h1>
+            <h1 className="text-4xl font-bold text-gray-900">CTAS DCF Model</h1>
             <p className="text-gray-600 mt-2">
               Discounted Cash Flow Analysis • Alpha Vantage Data
               {usingCache && <span className="ml-2 text-sm text-green-600">(Cached data)</span>}
@@ -372,21 +372,21 @@ export default function NvdaDcfPage() {
 <div className="mt-4 border-b border-gray-200">
   <nav className="flex gap-4" aria-label="tabs">
     <Link
-      href="/nvda"
+      href="/ctas"
       className="pb-3 text-gray-600 hover:text-blue-600"
     >
       Overview
     </Link>
 
     <Link
-      href="/nvda/dcf"
+      href="/ctas/dcf"
       className="pb-3 border-b-2 border-blue-600 text-blue-600 font-medium"
     >
       DCF
     </Link>
 
     <Link
-      href="/nvda/quant"
+      href="/ctas/quant"
       className="pb-3 text-gray-600 hover:text-blue-600"
     >
       Quant

@@ -32,7 +32,7 @@ function parseStooqCsv(csv: string): Bar[] {
 }
 
 export async function GET() {
-  const url = "https://stooq.com/q/d/l/?s=nvda.us&i=d";
+  const url = "https://stooq.com/q/d/l/?s=ctas.us&i=d";
 
   const res = await fetch(url, {
     next: { revalidate: 60 * 60 }, // cache 24h
@@ -46,7 +46,7 @@ export async function GET() {
   const bars = parseStooqCsv(csv);
 
   return NextResponse.json({
-    symbol: "NVDA",
+    symbol: "CTAS",
     source: "stooq",
     bars: bars.slice(-260), // ~1 year
   });

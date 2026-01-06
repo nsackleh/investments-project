@@ -1,0 +1,9 @@
+{
+  "tickers": [
+    "NVDA",
+    "AMZN"
+  ],
+  "recipientEmail": "nicksack16@gmail.com",
+  "deliveryTime": "14:00",
+  "timezone": "EST-5"
+}

@@ -133,6 +133,13 @@ export default async function NvdaPage() {
     >
       Quant
     </Link>
+
+    <Link
+      href="/nvda/news"
+      className="pb-3 text-gray-600 hover:text-blue-600"
+    >
+      News
+    </Link>
   </nav>
 </div>
 

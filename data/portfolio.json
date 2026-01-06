@@ -1,0 +1,8 @@
+{
+  "tickers": ["NVDA"],
+  "recipientEmail": "you@example.com",
+  "deliveryTime": "09:00",
+  "timezone": "EST-5",
+  "newsDomains": ["reuters.com","bloomberg.com","wsj.com","ft.com","cnbc.com","businessinsider.com","marketwatch.com","seekingalpha.com","barrons.com"],
+  "excludeDomains": ["dlnews.com","consent.yahoo.com","yahoo.com"]
+} 
